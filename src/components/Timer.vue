@@ -14,6 +14,7 @@ const distractionCount = ref(0); // 分心次数
 const focusTime = ref(0); // 记录专注时间
 const focusSessions = ref(0); // 记录专注次数
 let timer: ReturnType<typeof setInterval>;
+let timeoutId: ReturnType<typeof setTimeout> | null = null; // 添加定时器引用
 
 // 从 localStorage 加载数据
 const loadData = () => {
@@ -29,9 +30,9 @@ const loadData = () => {
     localStorage.setItem('focusTime', '0');
     localStorage.setItem('lastResetDate', new Date().toLocaleDateString());
   } else {
-    anxietyLevel.value = parseInt(storedAnxiety) || 0;
-    distractionCount.value = parseInt(storedDistraction) || 0;
-    focusTime.value = parseInt(storedFocusTime) || 0;
+    anxietyLevel.value = parseInt(storedAnxiety ?? '0') || 0;
+    distractionCount.value = parseInt(storedDistraction ?? '0') || 0;
+    focusTime.value = parseInt(storedFocusTime ?? '0') || 0;
   }
 };
 
@@ -97,6 +98,7 @@ const resetTimer = () => {
 const incrementDistraction = () => {
   distractionCount.value++;
   saveData(); // 保存数据
+  sendMessage('分心次数 +1')
 };
 
 const decrementDistraction = () => {
@@ -128,6 +130,13 @@ const startLongBreak = () => {
   }
 };
 
+const handleAnxietyChange = () => {
+  if (timeoutId) clearTimeout(timeoutId); // 清除之前的定时器
+  timeoutId = setTimeout(() => {
+    sendMessage(`现在的焦虑等级是：${anxietyLevel.value}`);
+  }, 3000); // 3秒后执行
+};
+
 function sendMessage(message: string) {
     emitter.emit('sendMessage', message)
 }
@@ -139,6 +148,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   clearInterval(timer); // 清理定时器
+  if (timeoutId) clearTimeout(timeoutId); // 新增清理防抖定时器
   saveData(); // 保存数据
 });
 </script>
@@ -155,7 +165,14 @@ onBeforeUnmount(() => {
     <button @click="startLongBreak" v-if="!isActive">开始长休息</button>
     <div class="anxiety-scale">
       <label for="anxiety">焦虑等级:</label>
-      <input type="range" id="anxiety" v-model="anxietyLevel" min="0" max="100" />
+      <input 
+        type="range" 
+        id="anxiety" 
+        v-model="anxietyLevel" 
+        min="0" 
+        max="100"
+        @input="handleAnxietyChange" 
+      />
       <span>{{ anxietyLevel }}</span>
     </div>
     <div class="distraction-counter">

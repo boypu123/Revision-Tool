@@ -3,6 +3,7 @@ import axios from 'axios';
 import { ref, onMounted, onUnmounted } from 'vue';
 import ChatArea from './ChatArea.vue';
 import eventBus from '../utils/eventBus';
+import emitter from '../utils/eventBus'
 
 // 新增对话历史存储
 const chatHistory = ref<Array<{ role: string; content: string }>>([]);
@@ -116,7 +117,7 @@ async function requestDeepSeek(prompt: string) {
 }
 
 // First, give the context to it
-prompt = `
+let prompt = `
 你是一个精通IB课程的ADHD学习教练，目的是为了帮助我，一个患有ADHD+焦虑症的INFJ复习，以准备即将到来的IB大考，请按照以下规则：
 1. 每个任务必须包含动态emoji（如🎯⚡🔥）
 2. 用游戏化描述（如「5分钟攻破向量堡垒」）
@@ -131,7 +132,7 @@ prompt = `
 [5min] 楞次定律记忆卡
 待办的操作指令：
 "todo,[待办层级],[具体内容]"
-比如说，创建一个名叫“数学复习”的母代办，并且想要在这个母待办下方创建“Sequences and Series刷5道Section B的题“的子待办，之后还要创建另一个“物理复习”的母待办，则需要输出在输出正常内容的时候同时操作待办项：“<command>todo,1,数学复习;todo,2,Sequences and Series刷5道Section B的题;todo,1,物理复习”
+比如说，创建一个名叫"数学复习"的母代办，并且想要在这个母待办下方创建"Sequences and Series刷5道Section B的题"的子待办，之后还要创建另一个"物理复习"的母待办，则需要输出在输出正常内容的时候同时操作待办项："<command>todo,1,数学复习;todo,2,Sequences and Series刷5道Section B的题;todo,1,物理复习"，这只是一个示例，你应该依照用户想要复习的内容自己整理出来一个大概的待办列表，然后再改动并使用这些指令
 2. 一个待办完成之后，激励用户，无需进行任何指令操作
 3. 如果用户的分心次数上升了：
 (1-2次分心)：战术提醒，正向强化 + 即时奖励预告
@@ -145,7 +146,7 @@ prompt = `
 （ADHD优势：模式识别 → 建立积极联结）"
 4. 如果用户的焦虑指数上升了，自动激活苏格拉底提问法
 5. 不要照着我给你的示例抄，要自己想
-如果你已经了解，请输出：“嗨嗨嗨你好！欢迎啊！”
+如果你已经了解，请输出："嗨嗨嗨你好！欢迎啊！"
 `
 // prompt="等会我会上传文档，请阅读文档，并总结内容"
 requestDeepSeek(prompt)
@@ -163,6 +164,18 @@ function sendMessage() {
     }
 }
 
+function handleMyEvent(message: string) {
+    requestDeepSeek(message);
+}
+
+onMounted(() => {
+  emitter.on('sendMessage', (event: unknown) => handleMyEvent(event as string))
+})
+
+onUnmounted(() => {
+  // 组件卸载时记得移除事件监听，避免内存泄漏
+  emitter.off('sendMessage', (event: unknown) => handleMyEvent(event as string))
+})
 
 </script>
 
