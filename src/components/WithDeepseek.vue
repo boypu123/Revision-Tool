@@ -98,9 +98,17 @@ async function requestDeepSeek(prompt: string) {
         // 确保响应处理
         if (response.data?.response) {
             console.log(response.data)
+            // Split the thinking part and the response part
             let str = response.data.response;
             str = str.slice("<think>".length);
             const parts = str.split(/<\/?think>/);
+            // 如果parts[1]，assisstant传回的东西里面有任何</?command>，则将<command>里面的内容提取出来，然后执行
+
+            if (parts[1].includes("<command>")) {
+                const command = parts[1].split(/<\/?command>/);
+                console.log(command)
+            }
+
             
             chatHistory.value.push({
                 role: 'assistant',
@@ -153,13 +161,13 @@ requestDeepSeek(prompt)
 
 // 修改发送函数
 function sendMessage() {
-    if (userInput!="") { // 检查输入是否为空
+    if (userInput.value !== "") { // 使用.value访问ref的值
         requestDeepSeek(userInput.value)
             .then(() => {
-                userInput.value = ''; // 确保在请求完成后清空
+                userInput.value = '';
             })
             .catch(() => {
-                userInput.value = ''; // 出错时也清空输入
+                userInput.value = '';
             });
     }
 }

@@ -22,6 +22,9 @@
 <script setup lang="ts">
 import { ref, watchEffect, onMounted } from 'vue';
 import eventBus from '../utils/eventBus';
+import type { TodoTask } from './TodoList.vue';
+import { defineComponent, h, VNode } from 'vue';
+import type { PropType } from 'vue';
 
 const STORAGE_KEY = 'todo-tasks';
 
@@ -58,7 +61,7 @@ const loadTasks = () => {
 };
 
 const newTask = ref('');
-const tasks = ref<{ text: string; completed: boolean }[]>(loadTasks());
+const tasks = ref<TodoTask[]>(loadTasks());
 const currentLevel = ref<number>(0); // 明确指定类型
 
 // 自动保存到localStorage
@@ -148,8 +151,6 @@ const findParent = (taskList: TodoTask[], targetLevel: number): TodoTask | null 
   return null
 }
 
-
-
 </script>
 
 <style scoped>
@@ -207,8 +208,9 @@ const TaskItem = defineComponent({
       required: true
     }
   },
+  emits: ['remove'],
   setup(props, { emit }) {
-    return () => h('li', {
+    return (): VNode => h('li', {
       style: { 
         marginLeft: `${props.task.level * 30}px`,
         transition: 'margin 0.3s ease'
