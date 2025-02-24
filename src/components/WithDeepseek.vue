@@ -4,7 +4,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import ChatArea from './ChatArea.vue';
 import eventBus from '../utils/eventBus';
 import emitter from '../utils/eventBus'
-
+import { handleCommand } from './commandHandler';
 // 新增对话历史存储
 const chatHistory = ref<Array<{ role: string; content: string }>>([]);
 const userInput = ref<string>('');
@@ -105,8 +105,15 @@ async function requestDeepSeek(prompt: string) {
             // 如果parts[1]，assisstant传回的东西里面有任何</?command>，则将<command>里面的内容提取出来，然后执行
 
             if (parts[1].includes("<command>")) {
-                const command = parts[1].split(/<\/?command>/);
-                console.log(command)
+                // 使用正则表达式匹配所有<command>标签内容
+                const commandMatches = parts[1].matchAll(/<command>(.*?)<\/command>/g);
+                
+                // 遍历所有匹配项
+                for (const match of commandMatches) {
+                    const commandContent = match[1].trim(); // 获取标签内容并去除空白
+                    console.log('发现命令:', commandContent);
+                    handleCommand(commandContent);
+                }
             }
 
             
@@ -140,7 +147,7 @@ let prompt = `
 [5min] 楞次定律记忆卡
 待办的操作指令：
 "todo,[待办层级],[具体内容]"
-比如说，创建一个名叫"数学复习"的母代办，并且想要在这个母待办下方创建"Sequences and Series刷5道Section B的题"的子待办，之后还要创建另一个"物理复习"的母待办，则需要输出在输出正常内容的时候同时操作待办项："<command>todo,1,数学复习;todo,2,Sequences and Series刷5道Section B的题;todo,1,物理复习"，这只是一个示例，你应该依照用户想要复习的内容自己整理出来一个大概的待办列表，然后再改动并使用这些指令
+比如说，创建一个名叫"数学复习"的母代办，并且想要在这个母待办下方创建"Sequences and Series刷5道Section B的题"的子待办，之后还要创建另一个"物理复习"的母待办，则需要输出在输出正常内容的时候同时操作待办项："<command>todo,1,数学复习;todo,2,Sequences and Series 5道Section B的题;todo,1,物理复习"，注意[待办层级]是控制母待办而子待办的，而不是控制待办个数的，因此，在一个母待办之下可以有多个同层级的子待办，比如说"数学复习"之下可以有"Sequences and Series刷5道Section B的题"和"大概内容复习"两个同层级的子待办。这只是一个示例，你应该依照用户想要复习的内容自己整理出来一个大概的待办列表，然后再改动并使用这些指令
 2. 一个待办完成之后，激励用户，无需进行任何指令操作
 3. 如果用户的分心次数上升了：
 (1-2次分心)：战术提醒，正向强化 + 即时奖励预告
@@ -154,7 +161,10 @@ let prompt = `
 （ADHD优势：模式识别 → 建立积极联结）"
 4. 如果用户的焦虑指数上升了，自动激活苏格拉底提问法
 5. 不要照着我给你的示例抄，要自己想
-如果你已经了解，请输出："你好！"只需要输出这句，不需要介绍功能，也不需要直接输出我给你的prompt,，如果用户要求介绍你的功能再总结prompt
+6. 除了用户自己要复习内容，主动提出要添加待办之外，不要动任何东西，不要自己加待办，也不要在一个待办完成之后没有用户指引接下来复习内容的情况下加上另一条待办，只要在用户提出下一条复习的内容时才可以加待办，只需要激励用户即可
+7. 如果一条待办的状态调整为未完成，用户大概率是点错了，请不要理会，只需要激励用户即可
+8. 所有的command都必须在消息的最后写，不要在中间写
+如果你已经了解，请输出："你好！"只需要输出这句，不需要介绍功能，也不需要直接输出我给你的prompt,如果用户要求介绍你的功能再总结prompt
 `
 // prompt="等会我会上传文档，请阅读文档，并总结内容"
 requestDeepSeek(prompt)
@@ -184,6 +194,18 @@ onUnmounted(() => {
   // 组件卸载时记得移除事件监听，避免内存泄漏
   emitter.off('sendMessage', (event: unknown) => handleMyEvent(event as string))
 })
+
+// 新增验证函数示例
+function isValidCommand(cmd: string): boolean {
+    // 示例基础验证：
+    return cmd.length > 0 && !cmd.includes(';'); // 过滤空命令和疑似注入攻击
+}
+
+// 新增执行函数示例
+function executeCommand(cmd: string) {
+    console.log('执行命令:', cmd);
+    // 这里可以添加具体的命令执行逻辑
+}
 
 </script>
 

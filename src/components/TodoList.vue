@@ -20,13 +20,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watchEffect, onMounted } from 'vue';
+import { ref, watchEffect, onMounted, onUnmounted } from 'vue';
 import eventBus from '../utils/eventBus';
-import type { TodoTask } from './TodoList.vue';
-import { defineComponent, h, VNode } from 'vue';
-import type { PropType } from 'vue';
 
 const STORAGE_KEY = 'todo-tasks';
+
+onMounted(() => {
+  eventBus.on('updateTodo', (data) => {
+    currentLevel.value = data.layer;
+    newTask.value = data.content;
+    addTask();
+    // Clear so it does not interfere with the next command
+    newTask.value = '';
+    currentLevel.value = 0;
+  });
+});
+
+onUnmounted(() => {
+  eventBus.off('updateTodo');
+});
 
 // 在script setup部分添加generateId函数
 const generateId = () => {
@@ -61,7 +73,7 @@ const loadTasks = () => {
 };
 
 const newTask = ref('');
-const tasks = ref<TodoTask[]>(loadTasks());
+const tasks = ref<{ text: string; completed: boolean }[]>(loadTasks());
 const currentLevel = ref<number>(0); // 明确指定类型
 
 // 自动保存到localStorage
@@ -112,6 +124,7 @@ const addTask = () => {
         }
       }
     }
+    // eventBus.emit('sendMessage', newTask.value + "待办已经添加，待办子母层级为" + (currentLevel.value + 1));
     newTask.value = ''
   }
 }
@@ -187,10 +200,19 @@ const findParent = (taskList: TodoTask[], targetLevel: number): TodoTask | null 
 .level-control span {
   color: #888;
 }
+
+.todo-list {
+  /* 其他样式 */
+}
+
+.todo-item {
+  margin: 5px 0; /* 调整每个项之间的间距 */
+  padding: 5px; /* 可选：调整内边距 */
+}
 </style>
 
 <script lang="ts">
-import { defineComponent, h } from 'vue';
+import { defineComponent, h, VNode } from 'vue';
 import type { PropType } from 'vue';
 
 interface TodoTask {
@@ -208,12 +230,12 @@ const TaskItem = defineComponent({
       required: true
     }
   },
-  emits: ['remove'],
-  setup(props, { emit }) {
-    return (): VNode => h('li', {
+  setup(props, { emit }): () => VNode {
+    return () => h('li', {
       style: { 
-        marginLeft: `${props.task.level * 30}px`,
-        transition: 'margin 0.3s ease'
+        marginLeft: `${(props.task.level - 1) * 20}px`,
+        transition: 'margin 0.3s ease',
+        textDecoration: props.task.completed ? 'line-through' : 'none'
       }
     }, [
       h('input', {
@@ -221,6 +243,7 @@ const TaskItem = defineComponent({
         checked: props.task.completed,
         onChange: () => {
           props.task.completed = !props.task.completed;
+          eventBus.emit('sendMessage', props.task.text + "待办的状态已经调整为：" + (props.task.completed ? '已完成' : '未完成'));
         }
       }),
       props.task.text,

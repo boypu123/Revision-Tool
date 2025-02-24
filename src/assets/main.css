@@ -6,4 +6,25 @@ body{
 
 }
 
+button{
+  background-color: #424242;
+  color: #fff;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:hover{
+  background-color: #616161;
+}
+
+input{
+  background-color: #424242;
+  color: #fff;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 5px;
+  margin-bottom: 5px;
+}
 

@@ -16,6 +16,11 @@ const focusSessions = ref(0); // 记录专注次数
 let timer: ReturnType<typeof setInterval>;
 let timeoutId: ReturnType<typeof setTimeout> | null = null; // 添加定时器引用
 
+// 新增提示相关状态
+const showAlert = ref(false);
+const alertMessage = ref('');
+const alertType = ref('info'); // 'info' | 'success' | 'warning'
+
 // 从 localStorage 加载数据
 const loadData = () => {
   const storedAnxiety = localStorage.getItem('anxietyLevel');
@@ -62,17 +67,21 @@ const startTimer = () => {
         focusSessions.value++; // 增加专注次数
         saveData(); // 保存数据
         if (focusSessions.value >= maxFocusSessions) {
-          alert('时间到！长休息时间开始！');
+          new Audio('/ringtone.mp3').play(); // 播放开始休息提示音
+          showCustomAlert('时间到！长休息时间开始！');
           isBreak.value = true;
           timeLeft.value = longBreakDuration; // 切换到长休息时间
           focusSessions.value = 0; // 重置专注次数
+          
         } else {
-          alert('时间到！休息时间开始！');
           isBreak.value = true;
           timeLeft.value = breakDuration; // 切换到短休息时间
+          new Audio('src/components/ringtone.mp3').play(); // 播放开始休息提示音
+          showCustomAlert('时间到！休息时间开始！');
         }
       } else {
-        alert('休息时间结束！专注时间开始！');
+        new Audio('/ringtone.mp3').play(); // 播放开始休息提示音
+        showCustomAlert('休息时间结束！专注时间开始！');
         isBreak.value = false;
         timeLeft.value = focusDuration; // 切换到专注时间
       }
@@ -141,6 +150,15 @@ function sendMessage(message: string) {
     emitter.emit('sendMessage', message)
 }
 
+const showCustomAlert = (message: string, type: 'info' | 'success' | 'warning' = 'info') => {
+  alertMessage.value = message;
+  alertType.value = type;
+  showAlert.value = true;
+  setTimeout(() => {
+    showAlert.value = false;
+  }, 3000); // 3秒后自动消失
+};
+
 onMounted(() => {
   loadData(); // 加载数据
   timeLeft.value = focusDuration; // 初始化时间
@@ -158,11 +176,13 @@ onBeforeUnmount(() => {
     <h2>番茄钟</h2>
     <div class="phase-indicator">{{ isBreak ? '休息时间' : '工作时间' }}</div>
     <div class="timer-display">{{ formattedTime }}</div>
-    <button @click="startTimer" v-if="!isActive && !isBreak">开始</button>
-    <button @click="stopTimer" v-if="isActive">停止</button>
-    <button @click="resetTimer">重置</button>
-    <button @click="nextPhase">下一个阶段</button>
-    <button @click="startLongBreak" v-if="!isActive">开始长休息</button>
+    <div class="timer-buttons">
+      <button @click="startTimer" v-if="!isActive && !isBreak">开始</button>
+      <button @click="stopTimer" v-if="isActive">停止</button>
+      <button @click="resetTimer">重置</button>
+      <button @click="nextPhase">下一个阶段</button>
+      <button @click="startLongBreak" v-if="!isActive">开始长休息</button>
+    </div>
     <div class="anxiety-scale">
       <label for="anxiety">焦虑等级:</label>
       <input 
@@ -177,12 +197,21 @@ onBeforeUnmount(() => {
     </div>
     <div class="distraction-counter">
       <h3>分心次数: {{ distractionCount }}</h3>
-      <button @click="incrementDistraction">分心 +1</button>
-      <button @click="decrementDistraction">分心 -1</button>
+      <div class="distraction-buttons">
+        <button @click="incrementDistraction">分心 +1</button>
+        <button @click="decrementDistraction">分心 -1</button>
+      </div>
     </div>
     <div class="focus-time">
       <h3>专注时间: {{ focusTime }} 分钟 &nbsp; 自从长休息之后已经过了：{{ focusSessions }} 次休息圈</h3>
     </div>
+    
+    <!-- 新增提示组件 -->
+    <transition name="alert">
+      <div v-if="showAlert" :class="['custom-alert', alertType]">
+        {{ alertMessage }}
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -195,13 +224,25 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
+.timer-buttons{
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.distraction-buttons{
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
 .phase-indicator {
   font-size: 1.5em; /* 增加阶段指示器字体大小 */
   margin: 10px 0;
 }
 
 .timer-display {
-  font-size: 3em; /* 增加时间显示字体大小 */
+  font-size: 4em; /* 增加时间显示字体大小 */
   margin: 20px 0;
 }
 
@@ -215,5 +256,46 @@ onBeforeUnmount(() => {
 
 .focus-time {
   margin-top: 20px;
+}
+
+/* 新增提示样式 */
+.custom-alert {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 15px 30px;
+  border-radius: 8px;
+  color: white;
+  font-size: 1.1em;
+  z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.custom-alert.info {
+  background: #2196F3;
+}
+
+.custom-alert.success {
+  background: #4CAF50;
+}
+
+.custom-alert.warning {
+  background: #ff9800;
+}
+
+/* 过渡动画 */
+.alert-enter-active {
+  transition: all 0.3s ease-out;
+}
+
+.alert-leave-active {
+  transition: all 0.2s ease-in;
+}
+
+.alert-enter-from,
+.alert-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-20px);
 }
 </style>
